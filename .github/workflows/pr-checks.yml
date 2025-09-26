@@ -2,7 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [ main, dev ]
+    branches: [main, dev]
 
 jobs:
   checks:
@@ -31,4 +31,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
