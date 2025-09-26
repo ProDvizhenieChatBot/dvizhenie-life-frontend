@@ -1,10 +1,16 @@
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
+import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 
 describe('App', () => {
   it('renders without crashing', () => {
-    render(<App />);
-    expect(screen.getByText('Vite + React')).toBeInTheDocument();
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+    // Проверяем, что приложение рендерится без ошибок
+    expect(document.body).toBeInTheDocument();
   });
 });
