@@ -1,14 +1,14 @@
 import React from 'react';
-import UserList from '../components/UserList';
 import BotScenario from '../components/BotScenario';
+import BotDocs from '@/components/BotDocs';
 
-const AdminPage: React.FC = () => {
+const SettingsPage: React.FC = () => {
   return (
     <div className="space-y-4">
-      <UserList />
+      <BotDocs />
       <BotScenario />
     </div>
   );
 };
 
-export default AdminPage;
+export default SettingsPage;
