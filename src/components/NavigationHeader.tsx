@@ -1,12 +1,13 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { FileText, Settings, LogOut } from 'lucide-react';
 
 const NavigationHeader: React.FC = () => {
   const location = useLocation();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/');
 
   const handleLogout = () => {
     // Здесь будет логика выхода из системы
@@ -19,7 +20,10 @@ const NavigationHeader: React.FC = () => {
         <div className="flex items-center justify-between h-12">
           <div className="flex items-center space-x-6">
             <nav className="flex space-x-2">
-              <Link to="/applications">
+              <NavLink
+                to="/applications"
+                aria-current={isActive('/applications') ? 'page' : undefined}
+              >
                 <Button
                   variant="ghost"
                   size="sm"
@@ -30,20 +34,20 @@ const NavigationHeader: React.FC = () => {
                   <FileText className="w-4 h-4 mr-2" />
                   Список анкет
                 </Button>
-              </Link>
+              </NavLink>
 
-              <Link to="/admin">
+              <NavLink to="/settings" aria-current={isActive('/settings') ? 'page' : undefined}>
                 <Button
                   variant="ghost"
                   size="sm"
                   className={`text-gray-600 hover:text-black hover:opacity-80 hover:!bg-transparent ${
-                    isActive('/admin') ? 'font-semibold text-black' : 'font-medium'
+                    isActive('/settings') ? 'font-semibold text-black' : 'font-medium'
                   }`}
                 >
                   <Settings className="w-4 h-4 mr-2" />
-                  Админка
+                  Настройки
                 </Button>
-              </Link>
+              </NavLink>
             </nav>
           </div>
 

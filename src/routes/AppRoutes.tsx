@@ -7,7 +7,7 @@ import LoginLayout from '../layout/LoginLayout';
 
 // Импорт страниц
 import LoginPage from '../pages/LoginPage';
-import AdminPage from '../pages/AdminPage';
+import SettingsPage from '../pages/SettingsPage';
 import ApplicationsPage from '../pages/ApplicationsPage';
 import ApplicationPage from '../pages/ApplicationPage';
 import NotFoundPage from '../pages/NotFoundPage';
@@ -30,10 +30,10 @@ const AppRoutes: React.FC = () => {
 
       {/* Остальные страницы с хедером */}
       <Route
-        path="/admin"
+        path="/settings"
         element={
           <MainLayout>
-            <AdminPage />
+            <SettingsPage />
           </MainLayout>
         }
       />
