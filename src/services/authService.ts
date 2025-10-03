@@ -49,7 +49,6 @@ class AuthService {
       try {
         const credentials = JSON.parse(saved);
         this.setCredentials(credentials.username, credentials.password);
-        console.log('Credentials restored from localStorage');
       } catch (error) {
         console.error('Failed to restore credentials:', error);
       }

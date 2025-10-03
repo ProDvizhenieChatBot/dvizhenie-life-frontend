@@ -15,6 +15,20 @@ interface ApplicationFormProps {
 
 type ApplicationStatus = 'completed' | 'in_progress' | 'pending';
 
+const mapUiStatusToApiStatus = (uiStatus: string): string => {
+  // Прямое соответствие согласно документации
+  switch (uiStatus) {
+    case 'completed':
+      return 'completed';
+    case 'in_progress':
+      return 'in_progress';
+    case 'pending':
+      return 'draft';
+    default:
+      console.warn('Unknown UI status, using draft:', uiStatus);
+      return 'draft';
+  }
+};
 const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationId }) => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [formData, setFormData] = useState<UiApplication | null>(null);
@@ -105,7 +119,14 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationId }) => {
 
     try {
       const apiStatus = mapUiStatusToApiStatus(newStatus);
-      await updateApplication(applicationId, { status: apiStatus });
+
+      // Правильная структура согласно документации
+      const updateData = {
+        status: apiStatus,
+        admin_comment: `Status changed to ${newStatus}`,
+      };
+
+      await updateApplication(applicationId, updateData);
 
       setFormData((prev) =>
         prev
@@ -118,7 +139,27 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationId }) => {
       );
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Ошибка при изменении статуса');
+      alert(
+        'Ошибка при изменении статуса: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
+      );
+    }
+  };
+
+  const canEditApplication = (status: ApplicationStatus): boolean => {
+    return status === 'pending';
+  };
+
+  const getEditButtonText = (status: ApplicationStatus): string => {
+    switch (status) {
+      case 'completed':
+        return 'Заявка завершена';
+      case 'in_progress':
+        return 'Заявка в обработке';
+      case 'pending':
+        return 'Редактировать';
+      default:
+        return 'Редактировать';
     }
   };
 
@@ -277,9 +318,19 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationId }) => {
             </Badge>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsEditing(true)} size="sm">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditing(true)}
+              size="sm"
+              disabled={!canEditApplication(formData.status)}
+              title={
+                !canEditApplication(formData.status)
+                  ? getEditButtonText(formData.status)
+                  : 'Редактировать заявку'
+              }
+            >
               <Edit className="w-4 h-4 mr-2" />
-              Редактировать
+              {getEditButtonText(formData.status)}
             </Button>
 
             <select
@@ -369,19 +420,6 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationId }) => {
       </CardContent>
     </Card>
   );
-};
-
-const mapUiStatusToApiStatus = (uiStatus: string): string => {
-  switch (uiStatus) {
-    case 'completed':
-      return 'approved';
-    case 'in_progress':
-      return 'new';
-    case 'pending':
-      return 'draft';
-    default:
-      return 'draft';
-  }
 };
 
 export default ApplicationForm;

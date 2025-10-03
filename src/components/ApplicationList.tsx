@@ -1,4 +1,3 @@
-// components/ApplicationList.tsx
 import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +12,8 @@ const ApplicationList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
-  const { applications, loading, error, refetch } = useApplications();
+  // Используем fetchApplications вместо refetch
+  const { applications, loading, error, fetchApplications } = useApplications();
 
   const handleCardClick = (applicationId: string) => {
     navigate(`/application/${applicationId}`);
@@ -70,11 +70,11 @@ const ApplicationList: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="text-lg text-destructive">Ошибка: {error}</div>
-        <Button onClick={() => refetch()}>Повторить попытку</Button>
+        {/* Используем fetchApplications вместо refetch */}
+        <Button onClick={() => fetchApplications()}>Повторить попытку</Button>
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -84,7 +84,7 @@ const ApplicationList: React.FC = () => {
             Показано: {filteredApplications.length} из {applications.length}
           </p>
         </div>
-        <Button onClick={() => refetch()}>Обновить</Button>
+        <Button onClick={() => fetchApplications()}>Обновить</Button>
       </div>
 
       {/* Поиск и фильтры */}

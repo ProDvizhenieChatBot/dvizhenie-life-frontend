@@ -1,22 +1,22 @@
 export interface ApiApplication {
   id: string;
-  status: 'draft' | 'new' | 'approved' | 'rejected';
-  data: {
-    name?: string;
-    age?: number;
-    email?: string;
-    phone?: string;
+  status: string;
+  data?: {
+    personal_info?: {
+      name?: string;
+      age?: number;
+      email?: string;
+      phone?: string;
+    };
     answers?: {
       question1?: string;
       question2?: string;
       question3?: string;
+      [key: string]: string | undefined;
     };
   };
-  admin_comment?: string;
-  telegram_id?: number;
   created_at: string;
-  updated_at?: string;
-  files: FileInfo[];
+  files: string[];
 }
 
 export interface FileInfo {
@@ -35,13 +35,13 @@ export interface UiApplication {
   email: string;
   phone: string;
   status: 'completed' | 'in_progress' | 'pending';
-  createdAt: string;
-  updatedAt: string;
   answers: {
     question1: string;
     question2: string;
     question3: string;
   };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApplicationUpdate {

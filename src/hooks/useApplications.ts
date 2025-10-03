@@ -3,50 +3,58 @@ import applicationsService from '../api/applicationsService';
 import { useAuth } from '../components/contexts/AuthContext';
 import type { ApiApplication, ApplicationUpdate, UiApplication } from '../api/types/api';
 
-export const useApplications = (
-  params: {
-    status?: string;
-    limit?: number;
-    offset?: number;
-  } = {},
-) => {
+const mapApiStatusToUiStatus = (apiStatus: string): 'completed' | 'in_progress' | 'pending' => {
+  switch (apiStatus) {
+    case 'completed':
+      return 'completed';
+    case 'in_progress':
+      return 'in_progress';
+    case 'new':
+      return 'in_progress';
+    case 'draft':
+    case 'rejected':
+      return 'pending';
+    default:
+      return 'pending';
+  }
+};
+
+export const useApplications = () => {
+  const { user } = useAuth();
   const [applications, setApplications] = useState<UiApplication[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
+  const paramsRef = useRef({});
 
-  const { user } = useAuth();
-  const paramsRef = useRef(params);
-  paramsRef.current = params;
-
+  // Мемоизируем transform функцию если она сложная
   const transformApiToUi = useCallback((apiApp: ApiApplication): UiApplication => {
+    // Безопасное извлечение данных с значениями по умолчанию
+    const personalInfo = apiApp.data?.personal_info || {};
+    const answers = apiApp.data?.answers || {};
+
     return {
       id: apiApp.id,
-      name: apiApp.data?.name || 'Не указано',
-      age: apiApp.data?.age || 0,
-      email: apiApp.data?.email || 'Не указано',
-      phone: apiApp.data?.phone || 'Не указано',
+      name: personalInfo.name || 'Не указано',
+      age: personalInfo.age || 0,
+      email: personalInfo.email || 'Не указано',
+      phone: personalInfo.phone || 'Не указано',
       status: mapApiStatusToUiStatus(apiApp.status),
-      createdAt: new Date(apiApp.created_at).toLocaleDateString('ru-RU'),
-      updatedAt: new Date(apiApp.updated_at || apiApp.created_at).toLocaleDateString('ru-RU'),
       answers: {
-        question1: apiApp.data?.answers?.question1 || '',
-        question2: apiApp.data?.answers?.question2 || '',
-        question3: apiApp.data?.answers?.question3 || '',
+        question1: answers.question1 || '',
+        question2: answers.question2 || '',
+        question3: answers.question3 || '',
       },
+      createdAt: new Date(apiApp.created_at).toLocaleDateString('ru-RU'),
+      updatedAt: new Date().toLocaleDateString('ru-RU'),
     };
   }, []);
 
   const fetchApplications = useCallback(
     async (fetchParams = {}) => {
-      // Проверяем аутентификацию
       if (!user) {
         setError('Please log in to view applications');
         setLoading(false);
-        return;
-      }
-
-      if (loading) {
         return;
       }
 
@@ -68,93 +76,51 @@ export const useApplications = (
         setLoading(false);
       }
     },
-    [loading, transformApiToUi, user],
+    [user, transformApiToUi], // Только стабильные зависимости
   );
 
-  const updateApplication = async (uuid: string, updateData: ApplicationUpdate) => {
-    if (!user) {
-      throw new Error('Not authenticated');
-    }
+  // Мемоизированные методы для работы с отдельными заявками
+  const getApplicationDetails = useCallback(
+    async (uuid: string): Promise<UiApplication> => {
+      if (!user) throw new Error('Not authenticated');
 
-    const updatedApplication: ApiApplication = await applicationsService.updateApplication(
-      uuid,
-      updateData,
-    );
+      const application = await applicationsService.getApplicationDetails(uuid);
+      return transformApiToUi(application);
+    },
+    [user, transformApiToUi],
+  );
 
-    setApplications((prev) =>
-      prev.map((app) =>
-        app.id === uuid
-          ? {
-              ...app,
-              status: mapApiStatusToUiStatus(updatedApplication.status),
-              updatedAt: new Date().toLocaleDateString('ru-RU'),
-            }
-          : app,
-      ),
-    );
+  const updateApplication = useCallback(
+    async (uuid: string, updateData: ApplicationUpdate): Promise<ApiApplication> => {
+      if (!user) throw new Error('Not authenticated');
+      return applicationsService.updateApplication(uuid, updateData);
+    },
+    [user],
+  );
 
-    return updatedApplication;
-  };
+  const updateApplicationData = useCallback(
+    async (uuid: string, data: Record<string, unknown>): Promise<ApiApplication> => {
+      if (!user) throw new Error('Not authenticated');
+      return applicationsService.saveApplicationProgress(uuid, data);
+    },
+    [user],
+  );
 
-  const updateApplicationData = async (
-    uuid: string,
-    data: NonNullable<ApplicationUpdate['data']>,
-  ) => {
-    if (!user) {
-      throw new Error('Not authenticated');
-    }
-
-    const updatedApplication: ApiApplication = await applicationsService.saveApplicationProgress(
-      uuid,
-      data,
-    );
-    const transformedApp = transformApiToUi(updatedApplication);
-
-    setApplications((prev) => prev.map((app) => (app.id === uuid ? transformedApp : app)));
-
-    return updatedApplication;
-  };
-
-  const getApplicationDetails = async (uuid: string): Promise<UiApplication> => {
-    if (!user) {
-      throw new Error('Not authenticated');
-    }
-
-    const apiApplication: ApiApplication = await applicationsService.getApplicationDetails(uuid);
-    return transformApiToUi(apiApplication);
-  };
-
+  // Инициализация при монтировании
   useEffect(() => {
-    // Загружаем данные только если авторизованы и еще не загружали
-    if (user && !hasFetched && !loading) {
+    if (user && !hasFetched) {
       fetchApplications();
     }
-  }, [user, hasFetched, loading, fetchApplications]);
+  }, [user, hasFetched, fetchApplications]);
 
   return {
     applications,
     loading,
     error,
-    refetch: fetchApplications,
+    hasFetched,
+    fetchApplications,
+    getApplicationDetails,
     updateApplication,
     updateApplicationData,
-    getApplicationDetails,
   };
-};
-
-const mapApiStatusToUiStatus = (apiStatus: string): 'completed' | 'in_progress' | 'pending' => {
-  switch (apiStatus) {
-    case 'approved':
-    case 'completed':
-      return 'completed';
-    case 'new':
-    case 'in_progress':
-      return 'in_progress';
-    case 'draft':
-    case 'pending':
-    case 'rejected':
-      return 'pending';
-    default:
-      return 'pending';
-  }
 };
