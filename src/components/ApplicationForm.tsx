@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,33 +6,125 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit, Save, X } from 'lucide-react';
-
-interface ApplicationData {
-  id: string;
-  name: string;
-  age: number;
-  email: string;
-  phone: string;
-  status: 'completed' | 'in_progress' | 'pending';
-  createdAt: string;
-  updatedAt: string;
-  answers: {
-    question1: string;
-    question2: string;
-    question3: string;
-  };
-}
+import { useApplications } from '../hooks/useApplications';
+import type { UiApplication } from '../api/types/api';
 
 interface ApplicationFormProps {
-  applicationData: ApplicationData;
-  onSave: (data: ApplicationData) => void;
+  applicationId: string;
 }
 
-const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationData, onSave }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<ApplicationData>(applicationData);
+type ApplicationStatus = 'completed' | 'in_progress' | 'pending';
 
-  const getStatusVariant = (status: string) => {
+const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationId }) => {
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [formData, setFormData] = useState<UiApplication | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+
+  const { getApplicationDetails, updateApplication, updateApplicationData } = useApplications();
+
+  useEffect(() => {
+    const fetchApplication = async () => {
+      try {
+        const application = await getApplicationDetails(applicationId);
+        setFormData(application);
+      } catch (error) {
+        console.error('Error fetching application:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchApplication();
+  }, [applicationId, getApplicationDetails]);
+
+  const handleSave = async (): Promise<void> => {
+    if (!formData) return;
+
+    setSaving(true);
+    try {
+      const apiData = {
+        name: formData.name,
+        age: formData.age,
+        email: formData.email,
+        phone: formData.phone,
+        answers: formData.answers,
+      };
+
+      await updateApplicationData(applicationId, apiData);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving application:', error);
+      alert('Ошибка при сохранении данных');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = (): void => {
+    const reloadData = async (): Promise<void> => {
+      try {
+        const application = await getApplicationDetails(applicationId);
+        setFormData(application);
+      } catch (error) {
+        console.error('Error reloading application:', error);
+      }
+    };
+
+    reloadData();
+    setIsEditing(false);
+  };
+
+  const handleInputChange = (field: keyof UiApplication, value: string | number): void => {
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            [field]: value,
+          }
+        : null,
+    );
+  };
+
+  const handleAnswerChange = (questionKey: keyof UiApplication['answers'], value: string): void => {
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            answers: {
+              ...prev.answers,
+              [questionKey]: value,
+            },
+          }
+        : null,
+    );
+  };
+
+  const handleStatusChange = async (newStatus: ApplicationStatus): Promise<void> => {
+    if (!formData) return;
+
+    try {
+      const apiStatus = mapUiStatusToApiStatus(newStatus);
+      await updateApplication(applicationId, { status: apiStatus });
+
+      setFormData((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: newStatus,
+              updatedAt: new Date().toLocaleDateString('ru-RU'),
+            }
+          : null,
+      );
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Ошибка при изменении статуса');
+    }
+  };
+
+  const getStatusVariant = (
+    status: string,
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (status) {
       case 'completed':
         return 'default';
@@ -45,7 +137,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationData, onSa
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string): string => {
     switch (status) {
       case 'completed':
         return 'Завершена';
@@ -58,43 +150,32 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationData, onSa
     }
   };
 
-  const handleSave = () => {
-    onSave(formData);
-    setIsEditing(false);
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg">Загрузка данных заявки...</div>
+      </div>
+    );
+  }
 
-  const handleCancel = () => {
-    setFormData(applicationData);
-    setIsEditing(false);
-  };
-
-  const handleInputChange = (field: keyof ApplicationData, value: string | number) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleAnswerChange = (questionKey: keyof ApplicationData['answers'], value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      answers: {
-        ...prev.answers,
-        [questionKey]: value,
-      },
-    }));
-  };
+  if (!formData) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg text-destructive">Заявка не найдена</div>
+      </div>
+    );
+  }
 
   if (isEditing) {
     return (
       <Card className="space-y-6">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>{formData.name}</CardTitle>
+            <CardTitle>Редактирование заявки</CardTitle>
             <div className="flex gap-2">
-              <Button onClick={handleSave} size="sm">
+              <Button onClick={handleSave} size="sm" disabled={saving}>
                 <Save className="w-4 h-4 mr-2" />
-                Сохранить
+                {saving ? 'Сохранение...' : 'Сохранить'}
               </Button>
               <Button variant="outline" onClick={handleCancel} size="sm">
                 <X className="w-4 h-4 mr-2" />
@@ -185,21 +266,32 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationData, onSa
     );
   }
 
-  // Режим просмотра
   return (
     <Card className="space-y-6">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle>{applicationData.name}</CardTitle>
-            <Badge variant={getStatusVariant(applicationData.status)}>
-              {getStatusText(applicationData.status)}
+            <CardTitle>{formData.name}</CardTitle>
+            <Badge variant={getStatusVariant(formData.status)}>
+              {getStatusText(formData.status)}
             </Badge>
           </div>
-          <Button variant="outline" onClick={() => setIsEditing(true)} size="sm">
-            <Edit className="w-4 h-4 mr-2" />
-            Редактировать
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsEditing(true)} size="sm">
+              <Edit className="w-4 h-4 mr-2" />
+              Редактировать
+            </Button>
+
+            <select
+              value={formData.status}
+              onChange={(e) => handleStatusChange(e.target.value as ApplicationStatus)}
+              className="px-3 py-2 border rounded-md text-sm"
+            >
+              <option value="pending">Ожидает</option>
+              <option value="in_progress">В процессе</option>
+              <option value="completed">Завершена</option>
+            </select>
+          </div>
         </div>
       </CardHeader>
 
@@ -208,42 +300,42 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationData, onSa
           <div className="space-y-2">
             <Label htmlFor="view-id">ID</Label>
             <div className="px-3 py-2 bg-muted/30 rounded-md text-sm h-10 flex items-center">
-              {applicationData.id}
+              {formData.id}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="view-age">Возраст</Label>
             <div className="px-3 py-2 bg-muted/30 rounded-md text-sm h-10 flex items-center">
-              {applicationData.age} лет
+              {formData.age} лет
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="view-email">Email</Label>
             <div className="px-3 py-2 bg-muted/30 rounded-md text-sm h-10 flex items-center">
-              {applicationData.email}
+              {formData.email}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="view-phone">Телефон</Label>
             <div className="px-3 py-2 bg-muted/30 rounded-md text-sm h-10 flex items-center">
-              {applicationData.phone}
+              {formData.phone}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="view-created">Дата создания</Label>
             <div className="px-3 py-2 bg-muted/30 rounded-md text-sm h-10 flex items-center">
-              {applicationData.createdAt}
+              {formData.createdAt}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="view-updated">Последнее обновление</Label>
             <div className="px-3 py-2 bg-muted/30 rounded-md text-sm h-10 flex items-center">
-              {applicationData.updatedAt}
+              {formData.updatedAt}
             </div>
           </div>
         </div>
@@ -255,21 +347,21 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationData, onSa
             <div className="space-y-2">
               <Label htmlFor="view-question1">Вопрос 1</Label>
               <div className="px-3 py-2 bg-muted/30 rounded-md text-sm min-h-[80px] flex items-start">
-                {applicationData.answers.question1}
+                {formData.answers.question1}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="view-question2">Вопрос 2</Label>
               <div className="px-3 py-2 bg-muted/30 rounded-md text-sm min-h-[80px] flex items-start">
-                {applicationData.answers.question2}
+                {formData.answers.question2}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="view-question3">Вопрос 3</Label>
               <div className="px-3 py-2 bg-muted/30 rounded-md text-sm min-h-[80px] flex items-start">
-                {applicationData.answers.question3}
+                {formData.answers.question3}
               </div>
             </div>
           </div>
@@ -277,6 +369,19 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ applicationData, onSa
       </CardContent>
     </Card>
   );
+};
+
+const mapUiStatusToApiStatus = (uiStatus: string): string => {
+  switch (uiStatus) {
+    case 'completed':
+      return 'approved';
+    case 'in_progress':
+      return 'new';
+    case 'pending':
+      return 'draft';
+    default:
+      return 'draft';
+  }
 };
 
 export default ApplicationForm;

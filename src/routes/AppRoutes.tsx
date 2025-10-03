@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 // Импорт лейаутов
 import MainLayout from '../layout/Layout';
@@ -18,7 +19,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/" element={<Navigate to="/applications" replace />} />
 
-      {/* Страница логина без хедера */}
+      {/* Страница логина */}
       <Route
         path="/login"
         element={
@@ -28,60 +29,44 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Остальные страницы с хедером */}
+      {/* Защищенные маршруты */}
       <Route
         path="/settings"
         element={
-          <MainLayout>
-            <SettingsPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <SettingsPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
       <Route
         path="/applications"
         element={
-          <MainLayout>
-            <ApplicationsPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <ApplicationsPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
       <Route
         path="/application/:id"
         element={
-          <MainLayout>
-            <ApplicationPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <ApplicationPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
-      <Route
-        path="/404"
-        element={
-          <MainLayout>
-            <NotFoundPage />
-          </MainLayout>
-        }
-      />
-
-      <Route
-        path="/500"
-        element={
-          <MainLayout>
-            <ServerErrorPage />
-          </MainLayout>
-        }
-      />
-
-      <Route
-        path="*"
-        element={
-          <MainLayout>
-            <NotFoundPage />
-          </MainLayout>
-        }
-      />
+      {/* Остальные маршруты */}
+      <Route path="/404" element={<NotFoundPage />} />
+      <Route path="/500" element={<ServerErrorPage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

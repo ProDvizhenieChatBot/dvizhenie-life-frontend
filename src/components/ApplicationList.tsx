@@ -1,3 +1,4 @@
+// components/ApplicationList.tsx
 import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,31 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter } from 'lucide-react';
-
-interface Application {
-  id: string;
-  name: string;
-  age: number;
-  status: 'completed' | 'in_progress' | 'pending';
-  createdAt: string;
-}
+import { useApplications } from '../hooks/useApplications';
 
 const ApplicationList: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
-  // Моковые данные для демонстрации
-  const applications: Application[] = useMemo(
-    () => [
-      { id: '1', name: 'Иван Петров', age: 25, status: 'completed', createdAt: '2024-01-15' },
-      { id: '2', name: 'Мария Сидорова', age: 30, status: 'in_progress', createdAt: '2024-01-16' },
-      { id: '3', name: 'Алексей Козлов', age: 28, status: 'pending', createdAt: '2024-01-17' },
-      { id: '4', name: 'Елена Волкова', age: 32, status: 'completed', createdAt: '2024-01-18' },
-      { id: '5', name: 'Дмитрий Соколов', age: 27, status: 'in_progress', createdAt: '2024-01-19' },
-    ],
-    [],
-  );
+  const { applications, loading, error, refetch } = useApplications();
 
   const handleCardClick = (applicationId: string) => {
     navigate(`/application/${applicationId}`);
@@ -74,6 +58,23 @@ const ApplicationList: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg">Загрузка заявок...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <div className="text-lg text-destructive">Ошибка: {error}</div>
+        <Button onClick={() => refetch()}>Повторить попытку</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -83,6 +84,7 @@ const ApplicationList: React.FC = () => {
             Показано: {filteredApplications.length} из {applications.length}
           </p>
         </div>
+        <Button onClick={() => refetch()}>Обновить</Button>
       </div>
 
       {/* Поиск и фильтры */}
@@ -141,7 +143,9 @@ const ApplicationList: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg mb-1">{application.name}</h3>
-                  <p className="text-sm text-muted-foreground">Создана: {application.createdAt}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Возраст: {application.age} лет • Создана: {application.createdAt}
+                  </p>
                 </div>
                 <Badge variant={getStatusVariant(application.status)}>
                   {getStatusText(application.status)}
@@ -151,6 +155,10 @@ const ApplicationList: React.FC = () => {
           </Card>
         ))}
       </div>
+
+      {filteredApplications.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">Заявки не найдены</div>
+      )}
     </div>
   );
 };
