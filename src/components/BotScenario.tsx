@@ -10,8 +10,8 @@ import initialScenario from '@/utilits/scenario.json';
 const BotScenario: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [jsonText, setJsonText] = useState<string>('');
-  const [parseError] = useState<string | null>(null);
-  const [schemaErrors] = useState<Array<{ line: number; message: string }>>([]);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [schemaErrors, setSchemaErrors] = useState<Array<{ line: number; message: string }>>([]);
   const [version, setVersion] = useState<string>('');
 
   const { getActiveSchema, uploadSchema, loading, error } = useForms();
@@ -23,7 +23,6 @@ const BotScenario: React.FC = () => {
         const schema = await getActiveSchema();
         setJsonText(JSON.stringify(schema, null, 2));
       } catch (err) {
-        // Если ошибка, используем локальную схему
         console.warn('Failed to load schema from server, using local:', err);
         setJsonText(JSON.stringify(initialScenario, null, 2));
       }
@@ -43,6 +42,37 @@ const BotScenario: React.FC = () => {
       .padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
     setVersion(versionString);
   }, []);
+
+  // Логика валидации JSON
+  useEffect(() => {
+    try {
+      JSON.parse(jsonText);
+      setParseError(null);
+    } catch {
+      setParseError('Invalid JSON');
+    }
+  }, [jsonText]);
+
+  // Логика валидации схемы
+  useEffect(() => {
+    const errors: Array<{ line: number; message: string }> = [];
+
+    try {
+      const parsed = JSON.parse(jsonText);
+
+      if (!parsed.start) {
+        errors.push({ line: 1, message: 'Поле start обязательно' });
+      }
+
+      if (!parsed.steps || !Array.isArray(parsed.steps)) {
+        errors.push({ line: 1, message: 'Поле steps обязательно и должно быть массивом' });
+      }
+    } catch {
+      // parseError уже обработан выше
+    }
+
+    setSchemaErrors(errors);
+  }, [jsonText]);
 
   const parsed = useMemo(() => {
     try {
@@ -123,7 +153,7 @@ const BotScenario: React.FC = () => {
                   disabled={Boolean(parseError) || schemaErrors.length > 0 || loading}
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  {loading ? 'Сохранение...' : 'Сохранить на сервер'}
+                  {loading ? 'Сохранение...' : 'Сохранить'}
                 </Button>
                 <Button variant="outline" onClick={() => setIsEditing(false)}>
                   Отмена
@@ -180,9 +210,11 @@ const BotScenario: React.FC = () => {
               <div className="flex items-start text-red-600 text-sm" role="alert">
                 <AlertCircle className="w-4 h-4 mr-2 mt-0.5" />
                 <div className="space-y-1">
-                  {parseError && <div>Ошибка синтаксиса JSON: {parseError}</div>}
+                  {parseError && <div data-testid="parse-error">Ошибка синтаксиса JSON</div>}
                   {schemaErrors.map((e, idx) => (
-                    <div key={idx}>{e.message}</div>
+                    <div key={idx} data-testid="schema-error">
+                      {e.message}
+                    </div>
                   ))}
                 </div>
               </div>

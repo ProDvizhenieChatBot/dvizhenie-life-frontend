@@ -127,6 +127,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
         onScroll={handleScroll}
         placeholder={placeholder}
         aria-label={placeholder || 'JSON editor'}
+        role="textbox" // ДОБАВЛЕНО ДЛЯ ТЕСТОВ
         rows={rows}
         className="relative z-10 block w-full h-full bg-transparent text-transparent caret-black dark:caret-white outline-none resize-none rounded-md p-3 text-sm leading-[1.25rem] whitespace-pre overflow-auto"
         spellCheck={false}

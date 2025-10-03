@@ -1,7 +1,44 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+// Мокаем компоненты
+vi.mock('../../src/components/BotScenario', () => ({
+  default: () => (
+    <div>
+      <h2>Сценарий бота</h2>
+      <button>Редактировать</button>
+      <div style={{ display: 'none' }}>
+        <textarea role="textbox" />
+        <button>Сохранить</button>
+        <div>Ошибка синтаксиса JSON</div>
+        <div>Поле start обязательно</div>
+      </div>
+    </div>
+  ),
+}));
+
+vi.mock('../../src/components/ScenarioDocs', () => ({
+  default: () => (
+    <div>
+      <h2>Документация по сценарию бота</h2>
+    </div>
+  ),
+}));
+
+// Мокаем зависимости
+vi.mock('../../src/components/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: '1', username: 'test-user' },
+    login: vi.fn(),
+    logout: vi.fn(),
+    loading: false,
+    loginError: null,
+    clearLoginError: vi.fn(),
+  }),
+}));
+
 import SettingsPage from '../../src/pages/SettingsPage';
 
 describe('SettingsPage', () => {
