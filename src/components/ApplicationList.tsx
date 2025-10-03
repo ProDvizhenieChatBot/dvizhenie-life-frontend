@@ -12,7 +12,6 @@ const ApplicationList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
-  // Используем fetchApplications вместо refetch
   const { applications, loading, error, fetchApplications } = useApplications();
 
   const handleCardClick = (applicationId: string) => {

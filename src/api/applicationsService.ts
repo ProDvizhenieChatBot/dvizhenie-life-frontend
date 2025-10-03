@@ -60,7 +60,6 @@ class ApplicationsService {
       body: JSON.stringify({ data }),
     });
 
-    // ✅ Возвращаем данные как есть, без преобразований
     const result = await handleResponse<ApiApplication>(response);
     return result;
   }

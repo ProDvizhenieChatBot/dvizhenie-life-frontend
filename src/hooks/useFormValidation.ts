@@ -15,16 +15,15 @@ export const useFormValidation = ({ schema, initialValues = {} }: UseFormValidat
   const [formData, setFormData] = useState<Record<string, string>>(initialValues);
   const [errors, setErrors] = useState<ValidationErrors>({});
 
-  // Сразу помечаем все поля как touched для немедленной валидации
   const [touched] = useState<Record<string, boolean>>(() => {
     const initialTouched: Record<string, boolean> = {};
     Object.keys(schema).forEach((field) => {
-      initialTouched[field] = true; // Все поля сразу touched
+      initialTouched[field] = true;
     });
     return initialTouched;
   });
 
-  // Валидация всего формы
+  // Валидация всей формы
   const validate = useCallback((): boolean => {
     const newErrors = validateForm(formData, schema);
     setErrors(newErrors);
@@ -46,7 +45,7 @@ export const useFormValidation = ({ schema, initialValues = {} }: UseFormValidat
     (field: string, value: string) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
 
-      // Валидируем поле сразу при изменении (все поля уже touched)
+      // Валидируем поле сразу при изменении
       const error = validateSingleField(field, value);
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -64,7 +63,6 @@ export const useFormValidation = ({ schema, initialValues = {} }: UseFormValidat
   // Обработчик потери фокуса
   const handleBlur = useCallback(
     (field: string) => {
-      // Поле уже touched, просто валидируем
       const error = validateSingleField(field, formData[field] || '');
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -83,7 +81,6 @@ export const useFormValidation = ({ schema, initialValues = {} }: UseFormValidat
   const resetForm = useCallback((newValues: Record<string, string> = {}) => {
     setFormData(newValues);
     setErrors({});
-    // При сбросе все поля остаются touched для немедленной валидации
   }, []);
 
   // Установка ошибки вручную

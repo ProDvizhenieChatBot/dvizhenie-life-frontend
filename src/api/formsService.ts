@@ -1,5 +1,5 @@
 import { API_BASE_URL, getHeaders, handleResponse } from './config';
-import type { FormSchema } from './types/api';
+import type { FormSchema, FormSchemaUpload } from './types/api';
 
 class FormsService {
   public credentials: { username: string; password: string } | null = null;
@@ -13,13 +13,10 @@ class FormsService {
       method: 'GET',
       headers: getHeaders(this.credentials),
     });
-    return handleResponse(response);
+    return handleResponse<FormSchema>(response);
   }
 
-  async uploadFormSchema(schemaData: {
-    version: string;
-    schema_data: FormSchema;
-  }): Promise<string> {
+  async uploadFormSchema(schemaData: FormSchemaUpload): Promise<string> {
     if (!this.credentials) {
       throw new Error('Credentials not set');
     }
@@ -29,7 +26,7 @@ class FormsService {
       headers: getHeaders(this.credentials),
       body: JSON.stringify(schemaData),
     });
-    return handleResponse(response);
+    return handleResponse<string>(response);
   }
 }
 

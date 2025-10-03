@@ -84,7 +84,20 @@ export interface FileLinkRequest {
 }
 
 export interface FormSchema {
-  [key: string]: unknown;
+  start: string;
+  steps: Array<{
+    id: string;
+    text: string;
+    type: 'message' | 'buttons' | 'input' | 'date' | 'phone' | 'email' | 'link';
+    options?: string[];
+    next?: string | Record<string, string>;
+    showIf?: string;
+  }>;
+}
+
+export interface FormSchemaUpload {
+  version: string;
+  schema_data: FormSchema;
 }
 
 export interface SessionResponse {

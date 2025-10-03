@@ -1,18 +1,48 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Edit, Save, AlertCircle } from 'lucide-react';
+import { Edit, AlertCircle, Download, Upload } from 'lucide-react';
 import JsonViewer from '@/components/JsonViewer';
 import JsonEditor from '@/components/JsonEditor';
+import { useForms } from '@/hooks/useForms';
 import initialScenario from '@/utilits/scenario.json';
 
 const BotScenario: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [jsonText, setJsonText] = useState<string>(JSON.stringify(initialScenario, null, 2));
-  const [parseError, setParseError] = useState<string | null>(null);
-  const [schemaErrors, setSchemaErrors] = useState<Array<{ line: number; message: string }>>([]);
+  const [jsonText, setJsonText] = useState<string>('');
+  const [parseError] = useState<string | null>(null);
+  const [schemaErrors] = useState<Array<{ line: number; message: string }>>([]);
+  const [version, setVersion] = useState<string>('');
 
-  type Scenario = { start?: unknown; steps?: unknown };
+  const { getActiveSchema, uploadSchema, loading, error } = useForms();
+
+  // Загружаем схему с сервера при монтировании
+  useEffect(() => {
+    const loadSchema = async () => {
+      try {
+        const schema = await getActiveSchema();
+        setJsonText(JSON.stringify(schema, null, 2));
+      } catch (err) {
+        // Если ошибка, используем локальную схему
+        console.warn('Failed to load schema from server, using local:', err);
+        setJsonText(JSON.stringify(initialScenario, null, 2));
+      }
+    };
+
+    loadSchema();
+  }, [getActiveSchema]);
+
+  // Генерируем версию на основе даты
+  useEffect(() => {
+    const date = new Date();
+    const versionString = `v${date.getFullYear()}${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}-${date
+      .getHours()
+      .toString()
+      .padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
+    setVersion(versionString);
+  }, []);
 
   const parsed = useMemo(() => {
     try {
@@ -22,151 +52,56 @@ const BotScenario: React.FC = () => {
     }
   }, [jsonText]);
 
-  useEffect(() => {
-    if (parsed !== null) {
-      setParseError(null);
-      return;
-    }
+  const handleSave = async () => {
+    if (parseError || schemaErrors.length > 0) return;
+
     try {
-      JSON.parse(jsonText);
-      setParseError(null);
-    } catch (e) {
-      let message = 'Invalid JSON';
-      if (e instanceof SyntaxError && typeof e.message === 'string') {
-        const m = /position\s+(\d+)/i.exec(e.message);
-        if (m) {
-          const pos = Number(m[1]);
-          const slice = jsonText.slice(0, pos);
-          const line = slice.split('\n').length;
-          const lastNl = slice.lastIndexOf('\n');
-          const col = (lastNl === -1 ? pos : pos - lastNl) + 1;
-          const prevTwo = jsonText.slice(Math.max(0, pos - 5), pos + 5);
-          const maybeTrailingComma = /,\s*[}\]]/.test(prevTwo);
-          const hint = maybeTrailingComma
-            ? ' (возможно, лишняя запятая перед закрывающей скобкой)'
-            : '';
-          message = `Синтаксическая ошибка: строка ${line}, колонка ${col}${hint}`;
-        } else {
-          message = e.message;
-        }
-      }
-      setParseError(message);
+      const schemaData = {
+        version: version,
+        schema_data: JSON.parse(jsonText),
+      };
+
+      await uploadSchema(schemaData);
+      setIsEditing(false);
+
+      alert('Схема успешно сохранена на сервере!');
+    } catch (err) {
+      console.error('Failed to save schema:', err);
+      alert(
+        'Ошибка при сохранении схемы: ' + (err instanceof Error ? err.message : 'Unknown error'),
+      );
     }
-  }, [jsonText, parsed]);
+  };
 
-  function findStepObjectStarts(text: string): number[] {
-    const res: number[] = [];
-    const stepsMatch = /"steps"\s*:\s*\[/i.exec(text);
-    if (!stepsMatch) return res;
-    const arrStart = text.indexOf('[', stepsMatch.index);
-    if (arrStart === -1) return res;
+  const handleDownload = () => {
+    const blob = new Blob([jsonText], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bot-scenario-${version}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
-    let inString = false;
-    let escape = false;
-    let braceDepth = 0;
+  const handleLoadFromFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    for (let pos = arrStart + 1; pos < text.length; pos++) {
-      const ch = text[pos];
-
-      if (inString) {
-        if (escape) escape = false;
-        else if (ch === '\\') escape = true;
-        else if (ch === '"') inString = false;
-        continue;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsedContent = JSON.parse(content);
+        setJsonText(JSON.stringify(parsedContent, null, 2));
+      } catch {
+        alert('Ошибка при чтении файла: Неверный JSON формат');
       }
-
-      if (ch === '"') {
-        inString = true;
-        continue;
-      }
-
-      if (ch === '{') {
-        if (braceDepth === 0) res.push(pos);
-        braceDepth++;
-      } else if (ch === '}') {
-        braceDepth--;
-        if (braceDepth < 0) break;
-      } else if (ch === ']') {
-        break;
-      }
-    }
-
-    return res;
-  }
-
-  useMemo(() => {
-    if (!parsed) {
-      setSchemaErrors([]);
-      return;
-    }
-
-    const errors: Array<{ line: number; message: string }> = [];
-    const stepStarts = findStepObjectStarts(jsonText);
-
-    const addError = (message: string, indexOrPath?: number | string) => {
-      let idx = -1;
-
-      if (typeof indexOrPath === 'number') {
-        idx = stepStarts[indexOrPath] ?? -1;
-
-        if (idx < 0) {
-          const stepsArr: unknown[] | undefined = (parsed as Scenario).steps as
-            | unknown[]
-            | undefined;
-          const step = stepsArr?.[indexOrPath] as Record<string, unknown> | undefined;
-          if (step && typeof step === 'object' && 'id' in step && step.id) {
-            const idRegex = new RegExp(
-              `"id"\\s*:\\s*"${String(step.id).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}"`,
-            );
-            const match = idRegex.exec(jsonText);
-            if (match) idx = match.index;
-          }
-        }
-      } else if (typeof indexOrPath === 'string') {
-        idx = jsonText.indexOf(`"${indexOrPath}"`);
-      }
-
-      if (idx < 0) {
-        const generalIdx = jsonText.indexOf('{');
-        idx = generalIdx >= 0 ? generalIdx : 0;
-      }
-
-      const line = idx >= 0 ? jsonText.slice(0, idx).split('\n').length : 1;
-      errors.push({ line, message: `Строка ${line}: ${message}` });
     };
+    reader.readAsText(file);
 
-    if (typeof parsed !== 'object' || parsed === null) {
-      addError('Корневой элемент должен быть объектом');
-    } else {
-      if (!('start' in (parsed as Scenario)) || typeof (parsed as Scenario).start !== 'string') {
-        addError('Поле start обязательно и должно быть строкой', 'start');
-      }
-      const stepsMaybe = (parsed as Scenario).steps;
-      if (!Array.isArray(stepsMaybe)) {
-        addError('Поле steps обязательно и должно быть массивом', 'steps');
-      } else {
-        const steps: unknown[] = stepsMaybe as unknown[];
-        steps.forEach((step, i) => {
-          if (typeof step !== 'object' || step === null) {
-            addError(`Шаг #${i + 1} должен быть объектом`, i);
-            return;
-          }
-
-          ['id', 'text', 'type'].forEach((key) => {
-            if (!(key in (step as Record<string, unknown>))) {
-              addError(`Отсутствует обязательное поле: ${key}`, i);
-            }
-          });
-        });
-      }
-    }
-
-    setSchemaErrors(errors);
-  }, [parsed, jsonText]);
-
-  const handleSave = () => {
-    if (parseError) return;
-    setIsEditing(false);
+    event.target.value = '';
   };
 
   return (
@@ -177,28 +112,61 @@ const BotScenario: React.FC = () => {
             <CardTitle className="font-extrabold">Сценарий бота</CardTitle>
             <CardDescription>
               Настройте сценарий, который будет использоваться ботом
+              {version && <span className="ml-2 text-blue-600">Версия: {version}</span>}
             </CardDescription>
           </div>
           <div className="flex space-x-2">
             {isEditing ? (
-              <Button
-                onClick={handleSave}
-                disabled={Boolean(parseError) || schemaErrors.length > 0}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Сохранить
-              </Button>
+              <>
+                <Button
+                  onClick={handleSave}
+                  disabled={Boolean(parseError) || schemaErrors.length > 0 || loading}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {loading ? 'Сохранение...' : 'Сохранить на сервер'}
+                </Button>
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Отмена
+                </Button>
+              </>
             ) : (
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Редактировать
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => setIsEditing(true)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Редактировать
+                </Button>
+                <Button variant="outline" onClick={handleDownload}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Скачать
+                </Button>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleLoadFromFile}
+                  className="hidden"
+                  id="schema-upload"
+                />
+                <Button variant="outline" asChild>
+                  <label htmlFor="schema-upload" className="cursor-pointer">
+                    Загрузить из файла
+                  </label>
+                </Button>
+              </>
             )}
           </div>
         </div>
       </CardHeader>
 
       <CardContent>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-center text-red-800">
+              <AlertCircle className="w-4 h-4 mr-2" />
+              Ошибка сервера: {error}
+            </div>
+          </div>
+        )}
+
         {isEditing ? (
           <div className="space-y-2">
             <JsonEditor
@@ -209,11 +177,7 @@ const BotScenario: React.FC = () => {
               errorRanges={schemaErrors}
             />
             {(parseError || schemaErrors.length > 0) && (
-              <div
-                className="flex items-start text-red-600 text-sm"
-                role="alert"
-                aria-live="polite"
-              >
+              <div className="flex items-start text-red-600 text-sm" role="alert">
                 <AlertCircle className="w-4 h-4 mr-2 mt-0.5" />
                 <div className="space-y-1">
                   {parseError && <div>Ошибка синтаксиса JSON: {parseError}</div>}

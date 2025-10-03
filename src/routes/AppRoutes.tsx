@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
-
+import BotScenario from '@/components/BotScenario';
 // Импорт лейаутов
 import MainLayout from '../layout/Layout';
 import LoginLayout from '../layout/LoginLayout';
@@ -18,7 +18,7 @@ const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/applications" replace />} />
-
+      <Route path="/bot-scenario" element={<BotScenario />} />
       {/* Страница логина */}
       <Route
         path="/login"
