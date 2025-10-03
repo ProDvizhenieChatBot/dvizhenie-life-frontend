@@ -2,21 +2,28 @@ export interface ApiApplication {
   id: string;
   status: string;
   data?: {
-    personal_info?: {
-      name?: string;
-      age?: number;
-      email?: string;
-      phone?: string;
-    };
+    name?: string;
+    age?: number;
+    email?: string;
+    phone?: string;
     answers?: {
       question1?: string;
       question2?: string;
       question3?: string;
       [key: string]: string | undefined;
     };
+
+    personal_info?: {
+      name?: string;
+      age?: number;
+      email?: string;
+      phone?: string;
+    };
   };
   created_at: string;
   files: string[];
+  admin_comment?: string;
+  telegram_id?: number | null;
 }
 
 export interface FileInfo {

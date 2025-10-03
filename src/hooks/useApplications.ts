@@ -27,18 +27,19 @@ export const useApplications = () => {
   const [hasFetched, setHasFetched] = useState(false);
   const paramsRef = useRef({});
 
-  // Мемоизируем transform функцию если она сложная
   const transformApiToUi = useCallback((apiApp: ApiApplication): UiApplication => {
-    // Безопасное извлечение данных с значениями по умолчанию
-    const personalInfo = apiApp.data?.personal_info || {};
+    const name = apiApp.data?.name || 'Не указано';
+    const age = apiApp.data?.age || 0;
+    const email = apiApp.data?.email || 'Не указано';
+    const phone = apiApp.data?.phone || 'Не указано';
     const answers = apiApp.data?.answers || {};
 
     return {
       id: apiApp.id,
-      name: personalInfo.name || 'Не указано',
-      age: personalInfo.age || 0,
-      email: personalInfo.email || 'Не указано',
-      phone: personalInfo.phone || 'Не указано',
+      name,
+      age,
+      email,
+      phone,
       status: mapApiStatusToUiStatus(apiApp.status),
       answers: {
         question1: answers.question1 || '',
@@ -76,7 +77,7 @@ export const useApplications = () => {
         setLoading(false);
       }
     },
-    [user, transformApiToUi], // Только стабильные зависимости
+    [user, transformApiToUi],
   );
 
   // Мемоизированные методы для работы с отдельными заявками

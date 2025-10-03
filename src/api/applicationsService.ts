@@ -76,16 +76,10 @@ class ApplicationsService {
       headers: getHeaders(this.credentials),
       body: JSON.stringify({ data }),
     });
-    const result = await handleResponse<ApplicationPublic>(response);
 
-    // Преобразуем ApplicationPublic в ApiApplication с правильным статусом
-    return {
-      id: result.id,
-      status: this.mapStatusToApiStatus(result.status), // Преобразуем статус
-      data: result.data,
-      created_at: new Date().toISOString(),
-      files: [],
-    };
+    // ✅ Возвращаем данные как есть, без преобразований
+    const result = await handleResponse<ApiApplication>(response);
+    return result;
   }
 
   async linkFileToApplication(uuid: string, fileData: FileLinkRequest): Promise<string> {
@@ -180,7 +174,9 @@ class ApplicationsService {
       method: 'GET',
       headers: getHeaders(this.credentials),
     });
-    return handleResponse<ApiApplication>(response);
+
+    const result = await handleResponse<ApiApplication>(response);
+    return result;
   }
 
   async updateApplication(uuid: string, updateData: ApplicationUpdate): Promise<ApiApplication> {
