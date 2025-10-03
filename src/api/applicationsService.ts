@@ -21,23 +21,6 @@ interface Credentials {
 class ApplicationsService {
   public credentials: Credentials | null = null;
 
-  private mapStatusToApiStatus(status: string): 'draft' | 'new' | 'approved' | 'rejected' {
-    switch (status.toLowerCase()) {
-      case 'draft':
-      case 'pending':
-        return 'draft';
-      case 'new':
-      case 'in_progress':
-        return 'new';
-      case 'approved':
-      case 'completed':
-        return 'approved';
-      case 'rejected':
-        return 'rejected';
-      default:
-        return 'draft'; // Значение по умолчанию
-    }
-  }
   // ========== PUBLIC ENDPOINTS ==========
   async getApplicationStatus(uuid: string): Promise<ApplicationStatus> {
     if (!this.credentials) {
